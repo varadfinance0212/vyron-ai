@@ -2,74 +2,116 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#07111f">
-<meta name="description" content="VYRON - Your Personal AI Assistant">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VYRON AI Assistant</title>
-
 <style>
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
+*{box-sizing:border-box}body{margin:0;font-family:Arial;background:radial-gradient(circle at top,#12345a,#030914 70%);color:white;min-height:100vh}.app{max-width:700px;margin:auto;padding:20px 15px}.head{text-align:center}.logo{margin:auto;width:70px;height:70px;border:2px solid #38bdf8;border-radius:50%;display:grid;place-items:center;font-size:38px;font-weight:bold;color:#7dd3fc;box-shadow:0 0 25px #0284c7}h1{letter-spacing:5px;margin:12px 0 4px}.sub{font-size:11px;color:#8fb3cf;letter-spacing:2px}.status{text-align:center;margin:12px 0;padding:9px;border:1px solid #21425e;border-radius:20px;color:#8fdcff;font-size:13px}.chat{height:55vh;overflow:auto;background:#050e19cc;border:1px solid #17344d;border-radius:18px;padding:12px}.msg{padding:11px 13px;margin:9px 0;border-radius:14px;max-width:88%;white-space:pre-wrap;line-height:1.4}.you{margin-left:auto;background:#075985}.ai{background:#102338;border:1px solid #1c405d}.bar{display:flex;gap:7px;margin-top:10px}input,select{background:#0a1829;color:white;border:1px solid #21425e;border-radius:12px;padding:13px;outline:none}input{flex:1}button{border:0;border-radius:12px;padding:12px;background:#075985;color:white;font-size:14px}.mic{background:#0f766e;font-size:18px}.quick{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.quick button{flex:1;min-width:70px;background:#0b2034;border:1px solid #1d4663;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="head">
+<div class="logo">V</div>
+<h1>VYRON</h1>
+<div class="sub">YOUR PERSONAL AI ASSISTANT</div>
+</div>
+
+<select id="lang" style="width:100%;margin:12px 0">
+<option value="en-IN">🇬🇧 English</option>
+<option value="hi-IN">🇮🇳 Hindi</option>
+<option value="gu-IN">🇮🇳 Gujarati</option>
+</select>
+
+<div id="status" class="status">Ready. Ask VYRON anything.</div>
+
+<div id="chat" class="chat">
+<div class="msg ai">Hello! I am VYRON, your personal AI assistant.</div>
+</div>
+
+<div class="bar">
+<input id="input" placeholder="Type your message...">
+<button class="mic" id="mic">🎤</button>
+<button id="send">Send</button>
+</div>
+
+<div class="quick">
+<button onclick="send('What time is it?')">🕐 Time</button>
+<button onclick="send('What is today\\'s date?')">📅 Date</button>
+<button onclick="send('Hello VYRON')">👋 Hello</button>
+<button onclick="open('https://www.google.com')">🔎 Google</button>
+<button onclick="open('https://www.youtube.com')">▶️ YouTube</button>
+</div>
+</div>
+
+<script>
+const API="https://vyron-ai-three.vercel.app/api/chat";
+const input=document.getElementById("input");
+const chat=document.getElementById("chat");
+const lang=document.getElementById("lang");
+const status=document.getElementById("status");
+
+function add(text,type){
+ let d=document.createElement("div");
+ d.className="msg "+type;
+ d.textContent=text;
+ chat.appendChild(d);
+ chat.scrollTop=chat.scrollHeight;
 }
 
-body{
-  font-family:Arial,Helvetica,sans-serif;
-  background:
-    radial-gradient(circle at top,#102b4d 0%,#07111f 45%,#030811 100%);
-  color:#fff;
-  min-height:100vh;
+function speak(text){
+ if(!speechSynthesis)return;
+ speechSynthesis.cancel();
+ let u=new SpeechSynthesisUtterance(text);
+ u.lang=lang.value;
+ speechSynthesis.speak(u);
 }
 
-.app{
-  width:100%;
-  max-width:700px;
-  min-height:100vh;
-  margin:auto;
-  padding:20px 15px;
-  display:flex;
-  flex-direction:column;
+async function send(text){
+ text=(text||input.value).trim();
+ if(!text)return;
+ input.value="";
+ add(text,"you");
+ status.textContent="VYRON is thinking...";
+ try{
+  let r=await fetch(API,{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({message:text,language:lang.value})
+  });
+  let d=await r.json();
+  if(!r.ok)throw Error(d.error||"Server error");
+  add(d.reply,"ai");
+  speak(d.reply);
+  status.textContent="Ready. Ask VYRON anything.";
+ }catch(e){
+  add("VYRON could not connect to the AI server. Please try again.","ai");
+  status.textContent="Connection error.";
+ }
 }
 
-.header{
-  text-align:center;
-  padding:15px 0 20px;
-}
+document.getElementById("send").onclick=()=>send();
+input.onkeydown=e=>{if(e.key==="Enter")send()};
 
-.logo{
-  width:72px;
-  height:72px;
-  margin:auto;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:38px;
-  font-weight:bold;
-  color:#7dd3fc;
-  border:2px solid #38bdf8;
-  box-shadow:
-    0 0 20px #0ea5e9,
-    inset 0 0 20px rgba(56,189,248,.2);
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+ let rec=new SR();
+ rec.continuous=false;
+ rec.interimResults=false;
+ document.getElementById("mic").onclick=()=>{
+  rec.lang=lang.value;
+  status.textContent="Listening...";
+  rec.start();
+ };
+ rec.onresult=e=>{
+  input.value=e.results[0][0].transcript;
+  send();
+ };
+ rec.onend=()=>status.textContent="Ready.";
+}else{
+ document.getElementById("mic").onclick=()=>{
+  status.textContent="Voice recognition is not supported.";
+ };
 }
-
-h1{
-  margin-top:12px;
-  font-size:30px;
-  letter-spacing:5px;
-}
-
-.subtitle{
-  margin-top:5px;
-  color:#8fb3cf;
-  font-size:12px;
-  letter-spacing:2px;
-}
-
-.status{
-  margin-top:12px;
-  padding:9px 12px;
-  border-radius:20px;
-  background:rgba(14,165,233,.08);
-  border:1px solid rgba(56,189,248
+</script>
+</body>
+</html>
